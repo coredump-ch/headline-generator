@@ -1,7 +1,5 @@
-1_getHeadlines.js
-# If everyone would fetch the headlines from
-# the website that would be like a DDoS.
-# So please don't.
+0_config.js
+# Config – copy and edit from 0_config.example.js.
 
 loading_icon_testpage.html
 # No need for that.
