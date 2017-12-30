@@ -1,4 +1,4 @@
-const http = require('http');
+const https = require('https');
 const cheerio = require('cheerio');
 const fs = require('fs');
 
@@ -43,16 +43,16 @@ function getNextHeadline() {
   }
 
 	searched.add(searchTerm);
-  console.log(`searchQueue ${searched.size - 2}:`, searchTerm);
-	http.get(getSearchURL(searchTerm), response => {
-    console.log('requested:', searchTerm);
+  console.info(`Starting search ${searched.size - 2}/${maximumSearches}:`, searchTerm, `(${searchQueue.size} left in queue)`);
+	https.get(getSearchURL(searchTerm), response => {
+    console.debug('requested:', searchTerm);
 		let data = '';
 		response.on('data', chunk => {
-      console.log('receiving:', searchTerm);
+      console.debug('receiving data for:', searchTerm);
 			data += chunk;
 		});
 		response.on('end', () => {
-      console.log('collected:', searchTerm);
+      console.debug('collected:', searchTerm);
       const $ = cheerio.load(data);
       $(config.searchPageHeadlineSelector).each((index, element) => {
         const part1 = $(element).find(config.searchPageHeadlinePart1Selector).text().trim();
@@ -63,7 +63,7 @@ function getNextHeadline() {
         headline = headline.replace(/  /g, ' ');
         if (headlines.indexOf(headline) === -1 && headline.indexOf('��') === -1 && headline.indexOf('\t') === -1) {
           headlines.push(headline);
-          console.log(headline);
+          console.log('New headline:', headline);
         }
         if (searchQueue.size < maximumSearches * 1.2) {
           headline.split(/[- .,?!«»„“":()0-9]/).forEach(term => {
@@ -78,8 +78,9 @@ function getNextHeadline() {
 	}).on('error', error.bind(this, searchTerm));
 }
 
-http.get(config.frontPageURL, response => {
+https.get(config.frontPageURL, response => {
   let running = false;
+  console.info(`Fetching startpage. Status code ${response.statusCode}`);
 	response.on('data', chunk => {
 	  const result = chunk.toString().match(config.frontPageHeadlineRegex);
 	  if (result) {
@@ -92,6 +93,7 @@ http.get(config.frontPageURL, response => {
 	    });
       if (!running && searchQueue.size) {
         running = true;
+        console.info(`Starting with ${searchQueue.size} search terms from front page.`);
         getNextHeadline();
       }
 	  }
