@@ -1,3 +1,4 @@
+const http = require('http');
 const https = require('https');
 const cheerio = require('cheerio');
 const fs = require('fs');
@@ -7,6 +8,8 @@ const headlines = require('./headlines.json');
 const searchQueue = new Set();
 const searched = new Set(['PART2', '']);
 const maximumSearches = config.maximumSearchRequests;
+
+const client = config.frontPageURL.indexOf('https://') === 0 ? https : http;
 
 function error(searchTerm) {
   console.error('(Error with ' + searchTerm + ')');
@@ -44,7 +47,7 @@ function getNextHeadline() {
 
   searched.add(searchTerm);
   console.info(`Starting search ${searched.size - 2}/${maximumSearches}:`, searchTerm, `(${searchQueue.size} left in queue)`);
-  https.get(getSearchURL(searchTerm), response => {
+  client.get(getSearchURL(searchTerm), response => {
     console.debug('requested:', searchTerm);
     let data = '';
     response.on('data', chunk => {
@@ -78,9 +81,9 @@ function getNextHeadline() {
   }).on('error', error.bind(this, searchTerm));
 }
 
-https.get(config.frontPageURL, response => {
+client.get(config.frontPageURL, response => {
   let running = false;
-  console.info(`Fetching startpage. Status code ${response.statusCode}`);
+  console.info(`Fetching front page. Status code ${response.statusCode}`);
   response.on('data', chunk => {
     const result = chunk.toString().match(config.frontPageHeadlineRegex);
     if (result) {
