@@ -10,9 +10,9 @@ const maximumSearches = config.maximumSearchRequests;
 
 function error(searchTerm) {
   console.error('(Error with ' + searchTerm + ')');
-	searched.delete(searchTerm);
-	searchQueue.add(searchTerm);
-	getNextHeadline();
+  searched.delete(searchTerm);
+  searchQueue.add(searchTerm);
+  getNextHeadline();
 }
 
 
@@ -31,27 +31,27 @@ function getSearchURL(searchterm) {
 }
 
 function getNextHeadline() {
-	const searchTerm = getRandomSearchTerm();
-	if (!searchTerm) {
-	  console.log(`finished ${searched.size - 2} searches`);
-	  return;
+  const searchTerm = getRandomSearchTerm();
+  if (!searchTerm) {
+    console.log(`finished ${searched.size - 2} searches`);
+    return;
   }
 
   searchQueue.delete(searchTerm);
   if (searched.has(searchTerm)) {
-	  return getNextHeadline();
+    return getNextHeadline();
   }
 
-	searched.add(searchTerm);
+  searched.add(searchTerm);
   console.info(`Starting search ${searched.size - 2}/${maximumSearches}:`, searchTerm, `(${searchQueue.size} left in queue)`);
-	https.get(getSearchURL(searchTerm), response => {
+  https.get(getSearchURL(searchTerm), response => {
     console.debug('requested:', searchTerm);
-		let data = '';
-		response.on('data', chunk => {
+    let data = '';
+    response.on('data', chunk => {
       console.debug('receiving data for:', searchTerm);
-			data += chunk;
-		});
-		response.on('end', () => {
+      data += chunk;
+    });
+    response.on('end', () => {
       console.debug('collected:', searchTerm);
       const $ = cheerio.load(data);
       $(config.searchPageHeadlineSelector).each((index, element) => {
@@ -73,29 +73,29 @@ function getNextHeadline() {
       });
       fs.writeFileSync('headlines.json', JSON.stringify(headlines));
       getNextHeadline();
-		});
-		response.on('error', error.bind(this, searchTerm));
-	}).on('error', error.bind(this, searchTerm));
+    });
+    response.on('error', error.bind(this, searchTerm));
+  }).on('error', error.bind(this, searchTerm));
 }
 
 https.get(config.frontPageURL, response => {
   let running = false;
   console.info(`Fetching startpage. Status code ${response.statusCode}`);
-	response.on('data', chunk => {
-	  const result = chunk.toString().match(config.frontPageHeadlineRegex);
-	  if (result) {
-	    result.forEach(match => {
+  response.on('data', chunk => {
+    const result = chunk.toString().match(config.frontPageHeadlineRegex);
+    if (result) {
+      result.forEach(match => {
         match.split(/title="|[-– .,?!«»„“":()0-9]/).forEach(keyword => {
           if (!searchQueue.has(keyword)) {
             searchQueue.add(keyword);
           }
         });
-	    });
+      });
       if (!running && searchQueue.size) {
         running = true;
         console.info(`Starting with ${searchQueue.size} search terms from front page.`);
         getNextHeadline();
       }
-	  }
-	});
+    }
+  });
 });
