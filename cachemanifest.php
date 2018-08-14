@@ -1,5 +1,5 @@
 <?php
-	header('Content-Type: text/cache-manifest; charset=utf-8');
+header('Content-Type: text/cache-manifest; charset=utf-8');
 ?>
 CACHE MANIFEST
 

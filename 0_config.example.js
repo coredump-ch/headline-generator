@@ -1,7 +1,7 @@
 module.exports = {
-  frontPageURL: 'http://www.example.com/',
+  frontPageURL: 'https://www.example.com/',
   frontPageHeadlineRegex: /title="(.+?)"/g,
-  searchURLPrefix: 'http://www.example.com/suche/?q=',
+  searchURLPrefix: 'https://www.example.com/suche/?q=',
   searchURLSuffix: '&sort=recs-publishtime',
   maximumSearchRequests: 1000,
   searchPageHeadlineSelector: 'a.news-links',

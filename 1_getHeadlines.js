@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const cheerio = require('cheerio');
 const fs = require('fs');
 
@@ -8,11 +9,13 @@ const searchQueue = new Set();
 const searched = new Set(['PART2', '']);
 const maximumSearches = config.maximumSearchRequests;
 
+const client = config.frontPageURL.indexOf('https://') === 0 ? https : http;
+
 function error(searchTerm) {
   console.error('(Error with ' + searchTerm + ')');
-	searched.delete(searchTerm);
-	searchQueue.add(searchTerm);
-	getNextHeadline();
+  searched.delete(searchTerm);
+  searchQueue.add(searchTerm);
+  getNextHeadline();
 }
 
 
@@ -31,28 +34,28 @@ function getSearchURL(searchterm) {
 }
 
 function getNextHeadline() {
-	const searchTerm = getRandomSearchTerm();
-	if (!searchTerm) {
-	  console.log(`finished ${searched.size - 2} searches`);
-	  return;
+  const searchTerm = getRandomSearchTerm();
+  if (!searchTerm) {
+    console.log(`finished ${searched.size - 2} searches`);
+    return;
   }
 
   searchQueue.delete(searchTerm);
   if (searched.has(searchTerm)) {
-	  return getNextHeadline();
+    return getNextHeadline();
   }
 
-	searched.add(searchTerm);
-  console.log(`searchQueue ${searched.size - 2}:`, searchTerm);
-	http.get(getSearchURL(searchTerm), response => {
-    console.log('requested:', searchTerm);
-		let data = '';
-		response.on('data', chunk => {
-      console.log('receiving:', searchTerm);
-			data += chunk;
-		});
-		response.on('end', () => {
-      console.log('collected:', searchTerm);
+  searched.add(searchTerm);
+  console.info(`Starting search ${searched.size - 2}/${maximumSearches}:`, searchTerm, `(${searchQueue.size} left in queue)`);
+  client.get(getSearchURL(searchTerm), response => {
+    console.debug('requested:', searchTerm);
+    let data = '';
+    response.on('data', chunk => {
+      console.debug('receiving data for:', searchTerm);
+      data += chunk;
+    });
+    response.on('end', () => {
+      console.debug('collected:', searchTerm);
       const $ = cheerio.load(data);
       $(config.searchPageHeadlineSelector).each((index, element) => {
         const part1 = $(element).find(config.searchPageHeadlinePart1Selector).text().trim();
@@ -63,7 +66,7 @@ function getNextHeadline() {
         headline = headline.replace(/  /g, ' ');
         if (headlines.indexOf(headline) === -1 && headline.indexOf('��') === -1 && headline.indexOf('\t') === -1) {
           headlines.push(headline);
-          console.log(headline);
+          console.log('New headline:', headline);
         }
         if (searchQueue.size < maximumSearches * 1.2) {
           headline.split(/[- .,?!«»„“":()0-9]/).forEach(term => {
@@ -73,27 +76,29 @@ function getNextHeadline() {
       });
       fs.writeFileSync('headlines.json', JSON.stringify(headlines));
       getNextHeadline();
-		});
-		response.on('error', error.bind(this, searchTerm));
-	}).on('error', error.bind(this, searchTerm));
+    });
+    response.on('error', error.bind(this, searchTerm));
+  }).on('error', error.bind(this, searchTerm));
 }
 
-http.get(config.frontPageURL, response => {
+client.get(config.frontPageURL, response => {
   let running = false;
-	response.on('data', chunk => {
-	  const result = chunk.toString().match(config.frontPageHeadlineRegex);
-	  if (result) {
-	    result.forEach(match => {
+  console.info(`Fetching front page. Status code ${response.statusCode}`);
+  response.on('data', chunk => {
+    const result = chunk.toString().match(config.frontPageHeadlineRegex);
+    if (result) {
+      result.forEach(match => {
         match.split(/title="|[-– .,?!«»„“":()0-9]/).forEach(keyword => {
           if (!searchQueue.has(keyword)) {
             searchQueue.add(keyword);
           }
         });
-	    });
+      });
       if (!running && searchQueue.size) {
         running = true;
+        console.info(`Starting with ${searchQueue.size} search terms from front page.`);
         getNextHeadline();
       }
-	  }
-	});
+    }
+  });
 });
